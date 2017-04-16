@@ -8,10 +8,6 @@
 
 using namespace std;
 
-double **A; ///declaration of matrix A
-size_t dimension; ///the dimensions of the problem
-vector<tuple<double**, double*, size_t>> examples; ///used to store the instances
-
 void print_vector(double *vector, const size_t size);
 void print_matrix(double **matrix, const size_t size);
 double* addition(const double *x, const double *y, const size_t size);
@@ -23,18 +19,19 @@ double vector_norm_2(const double *x, const size_t size);
 /**
  * Initializes (allocates memory) for matrix A
  */
-void initialize_A() {
-    A = new double*[dimension];
+double** initialize_A(size_t dimension) {
+    double** A = new double*[dimension];
     for(int i=0; i<dimension; ++i) {
         A[i] = new double[dimension];
     }
+    return A;
 }
 
 /**
  * Generates random numbers for the initialization of vector x
  * @param x: the vector with the random numbers
  */
-void randomize_x(double *x) {
+void randomize_x(double *x, size_t dimension) {
     random_device rd; ///random device used for initializing the distribution
     double random_num; ///random number for seed
     double lower_bound = 1; ///lower bound for seed
@@ -54,12 +51,14 @@ void randomize_x(double *x) {
  * @param filename: the input filename to read data from
  * @return -1: if there was any issue with the input file, 0: if everything was done properly
  */
-int read_file (string filename) {
+vector<tuple<double**, double*, size_t>> read_file (string filename /*,size_t dimension*/) {
     ifstream in(filename);///read from the file
+    vector<tuple<double**, double*, size_t>> examples; ///used to store the instances
+    double **A;
 
     if(!in.good()) {///check if the stream was read properly
         cerr<<"An error occured while trying to parse the file"<<endl;
-        return -1;
+        return examples;
     }
 
     vector<string> lines {istream_iterator<string>(in), istream_iterator<string>() }; ///initialize the vector from the values in the file
@@ -79,8 +78,8 @@ int read_file (string filename) {
         }
 
         if(lines[c_line]=="A") {
-            dimension = order;
-            initialize_A();///initilize A
+            //dimension = order;
+            A = initialize_A(order);///initilize A
             c_line+=3;///skip the next three lines
             ///iteratively fill the matrix
             for(int i=0; i<order; ++i) {
@@ -106,7 +105,7 @@ int read_file (string filename) {
         ++c_line;///move to the next line
     }
     in.close();///close stream
-    return 0;
+    return examples;
 }
 
 /**
@@ -114,7 +113,7 @@ int read_file (string filename) {
  * @param x: the vector multiplied with the matrix
  * @param y: the result of the multiplication
  */
-void my_cool_matrix_vector_product(const double *x, double *y) {
+void my_cool_matrix_vector_product(const double *x, double *y, double **A, size_t dimension) {
     for(int i=0; i<dimension; ++i) {
         double value = 0;
         for(int j=0; j<dimension; ++j) {
@@ -134,7 +133,7 @@ void my_cool_matrix_vector_product(const double *x, double *y) {
  * @param matvec: the function for computing the inner product (y = A*x)
  * @return results: a pair showing whether the method converged and the total number of iterations taken place
  */
-pair<bool, size_t> conjugate_gradient(double epsilon, size_t k_max, size_t n, const double *b, double *x, function<void(const double*, double*)> matvec) {
+pair<bool, size_t> conjugate_gradient(double epsilon, size_t k_max, size_t n, const double *b, double *x, size_t dimension, double **A, function<void(const double*, double*,  double**, size_t)> matvec) {
 
     const size_t order = n; ///constant variable equal to the order of the problem
     size_t k = 0; ///represents the number of iterations taken place
@@ -148,7 +147,7 @@ pair<bool, size_t> conjugate_gradient(double epsilon, size_t k_max, size_t n, co
 
     double *y; ///represents a temporary vector for computations
 
-    matvec(x, r); ///(assisted computation) r = A*x_0
+    matvec(x, r, A, n); ///(assisted computation) r = A*x_0
     r = subtraction(b, r, order); ///(pseudocode) r = b - A*x_0
     copy(r, r+order, p);///(pseudocode) p = r
 
@@ -156,7 +155,7 @@ pair<bool, size_t> conjugate_gradient(double epsilon, size_t k_max, size_t n, co
 
     while(k<k_max) {///the first condition of possible end of method execution
 
-        matvec(p, w); ///(pseudocode) w = A*p
+        matvec(p, w, A, n); ///(pseudocode) w = A*p
         alpha = rsold / transpose_multiplication(p, w, order); ///(pseudocode) a_k = rho_{k-1}/p'*w
 
         y = multiply_with_number(p, alpha, order); ///(assisted computation) y = a_k*p
@@ -187,27 +186,30 @@ pair<bool, size_t> conjugate_gradient(double epsilon, size_t k_max, size_t n, co
 
 int main() {
 
-    read_file("test_data.txt"); ///read data from file for testing
+    vector<tuple<double**, double*, size_t>> read_examples = read_file("test_data.txt"); ///read data from file for testing
+    if(read_examples.size() == 0) {
+        return -1;
+    }
 
     double epsilon = 0.000001; ///choosing an epsilon of error equal to 1.0e-6
     double *x; ///the pointer for the solution of the method
     size_t k_max = 420; ///choosing a specific number of maximum iterations
 
-    vector<tuple<double**, double*, size_t>>::iterator it = examples.begin();///executing the method for each example
-    while(it!= examples.end()) {
+    vector<tuple<double**, double*, size_t>>::iterator it = read_examples.begin();///executing the method for each example
+    while(it!= read_examples.end()) {
 
-        A = get<0>(*it); ///set A to the matrix
+        double **A = get<0>(*it); ///set A to the matrix
         double *b = get<1>(*it);///set b to the vector
         size_t dim  = get<2>(*it);///set dimension to the order(n)
-        dimension = dim;
-        randomize_x(x);///random initialization of vector x
+        size_t dimension = dim;
+        randomize_x(x, dimension);///random initialization of vector x
 
         cerr<<"Executing example of dimension equal to: "<<dim<<"x"<<dim<<endl;
         cerr<<"A = "; print_matrix(A, dim); ///print the input matrix
         cerr<<"b = "; print_vector(b, dim); ///print the input vector
 
         pair<bool, size_t> results = make_pair(false, 0); ///initialization of results -used for storing the results
-        results = conjugate_gradient(epsilon, k_max, dim, b, x, my_cool_matrix_vector_product); ///execute the method
+        results = conjugate_gradient(epsilon, k_max, dim, b, x, dimension, A, my_cool_matrix_vector_product); ///execute the method
         cerr<<"Method converged (1=yes, 0=no): "<<results.first<<" number of total iterations: "<<results.second<<endl;
 
         ++it;///move to the next example
