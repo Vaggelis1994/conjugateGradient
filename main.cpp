@@ -132,6 +132,7 @@ void my_cool_matrix_vector_product(const double *x, double *y, double **A, size_
  * @param b: the vector of the equation
  * @param x: the unknown vector, contains the solution in the end
  * @param matvec: the function for computing the inner product (y = A*x)
+ * @note: should modify the signature to work properly with C++17
  * @return results: a pair showing whether the method converged and the total number of iterations taken place
  */
 pair<bool, size_t> conjugate_gradient(double epsilon, size_t k_max, size_t n, const double *b, double *x, size_t dimension, double **A, function<void(const double*, double*,  double**, size_t)> matvec) {
