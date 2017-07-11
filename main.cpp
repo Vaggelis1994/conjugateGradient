@@ -8,6 +8,7 @@
 
 using namespace std;
 
+/*these functions may not need to be here, an include would be enough*/
 void print_vector(double *vector, const size_t size);
 void print_matrix(double **matrix, const size_t size);
 double* addition(const double *x, const double *y, const size_t size);
